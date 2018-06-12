@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_133792_sl.SequencedLogger</api_name>
+        <client_callable>false</client_callable>
+        <description>Stub that is called to create a SequencedLogger.  It lazy loads other script includes as needed.</description>
+        <name>SequencedLogger</name>
+        <script><![CDATA[var SequencedLogger = Class.create();
+(function SequencedLogger_static_scope(s) {
+	var TYPE = 'SequencedLogger';
+
+	var NOOP = function noop() { };
+
+	// Static cache.  You'll get the same logger if the cache is not unloaded.
+	// This is arranged to avoid loading SequencedLoggerImp (not tested yet.)
+	var loggers = {};  // One logger per loggerName
+
+	function getLogger(loggerName, override) {
+		var scopePrefix, loggerKey, propPref, cachedLogger;
+
+		scopePrefix = getScopePrefix(gs.getCallerScopeName());
+		loggerName = loggerName || TYPE;
+		loggerKey = scopePrefix + loggerName;
+		propPref = scopePrefix + 'sequenced_logger.' + loggerName + '.';
+
+		cachedLogger = loggers[loggerKey];
+		if (!cachedLogger) {
+			if (getPropPref(propPref + 'enabled', 'true') != 'true') {
+				cachedLogger = gs;
+			} else {
+				cachedLogger = new SequencedLoggerImp({
+					scopePrefix: scopePrefix,
+					loggerName:  loggerName,
+					loggerKey:   loggerKey,
+					propPref:    propPref,
+					override:    override // jig for testing
+				});
+			}
+			loggers[loggerKey] = cachedLogger;
+		}
+		return cachedLogger;
+	}
+	s.getLogger = getLogger;
+
+	function flushLogger(loggerName) {
+		var scopePrefix, loggerKey, cachedLogger;
+
+		scopePrefix = getScopePrefix(gs.getCallerScopeName());
+		loggerName = loggerName || TYPE;
+		loggerKey = scopePrefix + loggerName;
+
+		delete loggers[loggerKey];
+	}
+	s.flushLogger = flushLogger;
+
+
+	function makeInfoObject(logger) {
+		return function infoObject(spec, o) {
+			logger.info(new ObjectDump(o).toString());
+		};
+	}
+
+	function makeDebugObject(logger) {
+		if (!logger.isDebugging()) {
+			return NOOP;
+		}
+		return function debugObject(spec, o) {
+			logger.info(new ObjectDump(o).toString());
+		};
+	}
+
+	function cloneLogger(logger) {
+		this.error = logger.error;
+		this.warn  = logger.warn;
+		this.info  = logger.info;
+		this.debug = logger.debug;
+		this.isDebugging = logger.isDebugging;
+		this.infoObject =  logger.infoObject || makeInfoObject(logger);
+		this.debugObject = logger.debugObject || makeDebugObject(logger);
+	}
+
+	s.prototype = (function SequencedLogger_proto_scope(p) {
+		function initialize(loggerName) {
+			cloneLogger(getLogger(loggerName));
+		}
+		p.initialize = initialize;
+
+		return p;
+	})({});  // end prototype scope
+
+	function test() {
+		var SLTEST = 'SequencedLoggerTest';
+
+		var	scopePrefix = getScopePrefix(gs.getCallerScopeName());
+		var	loggerName = SLTEST;
+		var	propPref = scopePrefix + 'sequenced_logger.' + loggerName + '.';
+
+		var sl = SequencedLogger;
+		gs.getUser().savePreference(propPref + 'enabled', 'false');
+
+		var log = sl.getLogger(SLTEST);
+		gs.info('Logger is gs: {0}', log === gs);
+		sl.flushLogger(SLTEST);
+
+		gs.getUser().savePreference(propPref + 'enabled', 'true');
+		log = sl.getLogger(SLTEST);
+		gs.info('Logger is gs: {0}', log === gs);
+
+		log.debug('debug');
+		log.info('info');
+		log.warn('warn');
+		log.error('error');
+
+		log.debug('debug {0} {1}', 1, "A");
+		log.info('info {0} {1}', 1, "A");
+		log.warn('warn {0} {1}', 1, "A");
+		log.error('error {0} {1}', 1, "A");
+
+		log.debug('debug {0} {1}', [2, "B"]);
+		log.info('info {0} {1}', [2, "B"]);
+		log.warn('warn {0} {1}', [2, "B"]);
+		log.error('error {0} {1}', [2, "B"]);
+
+		// TODO: checkCurrentLevel
+
+		log.info('log.isDebugging()={0}', log.isDebugging());
+		var log2 = SequencedLogger.getLogger('notAProperty');
+		log.info('log2.isDebugging()={0}', log2.isDebugging());
+
+		log.infoObject({label: 'o01', maxNest: 5}, 1);
+		log.debugObject({label: 'o02'}, { a: 2 });
+		log.infoObject({label: 'o03'}, { b: 3, c: "x"});
+		log.infoObject({label: 'o04'}, ['a', 'b']);
+		log.infoObject({label: 'o05'}, [
+			{ a: 1, b: 2, c: 3},
+			[ 'x', 'y'],
+			7
+		]);
+
+		// TODO: Array
+		// TODO: maxDepth
+		gs.info('done');
+	}
+	s.test = test;
+
+	return s;
+})(SequencedLogger); // end static scope]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2018-05-23 00:05:17</sys_created_on>
+        <sys_id>e5fb1ba44f1613008305417da310c78c</sys_id>
+        <sys_mod_count>5</sys_mod_count>
+        <sys_name>SequencedLogger</sys_name>
+        <sys_package display_value="Sequenced Logger" source="x_133792_sl">c68303a04f1613008305417da310c783</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="Sequenced Logger">c68303a04f1613008305417da310c783</sys_scope>
+        <sys_update_name>sys_script_include_e5fb1ba44f1613008305417da310c78c</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2018-05-25 02:30:54</sys_updated_on>
+    </sys_script_include>
+</record_update>
